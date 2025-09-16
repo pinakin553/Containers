@@ -2,66 +2,61 @@
 
 This document highlights common container design patterns that are widely used in cloud-native and microservices-based architectures. These patterns help in structuring, running, and scaling containerized applications effectively.
 
----
-
-## 1. **Single Container per Host/Pod**
-- **Description:** Runs one container per pod (Kubernetes) or host.
-- **Use Case:** Simple services like APIs, web apps, or microservices.
-- **Pros:** Clear responsibility, easy scaling, minimal coupling.
-- **Cons:** May require sidecars for logging, monitoring, or networking.
-
----
-
-## 2. **Sidecar Pattern**
-- **Description:** A helper container runs alongside the main application container.
-- **Use Case:** Logging, monitoring, service mesh proxies (e.g., Envoy in Istio).
-- **Example:** NGINX sidecar serving static content, Fluentd sidecar for log shipping.
-- **Pros:** Separation of concerns, reusable components.
-- **Cons:** Increased resource usage, complexity in lifecycle management.
+## Q1. How do you decide between single-container vs. multi-container (sidecar/ambassador/adapter)?
+- Stateless services → single container per pod.  
+- Cross-cutting concerns (logging, monitoring, TLS) → sidecar.  
+- Legacy protocol/format conversion → adapter.  
+- Dynamic external endpoints → ambassador.  
+- A hybrid approach often works best.  
 
 ---
 
-## 3. **Ambassador Pattern**
-- **Description:** A container acts as a proxy between the application and the outside world.
-- **Use Case:** Connecting to external services like databases or APIs.
-- **Example:** Ambassador container handling TLS termination or database proxy.
-- **Pros:** Decouples app from external connection details, easy to swap endpoints.
-- **Cons:** Added network hop, potential latency.
+## Q2. How do you handle stateful workloads in containers where pods are ephemeral?
+- Use **StatefulSets** for stable identity.  
+- Attach **PVCs** with durable storage (EBS/EFS, Ceph).  
+- Apply **PodDisruptionBudgets** to maintain quorum.  
+- Leverage **operators** for lifecycle automation.  
+- Ensure backups & DR with snapshots or streaming.  
 
 ---
 
-## 4. **Adapter Pattern**
-- **Description:** A container standardizes the interface between an application and other systems.
-- **Use Case:** Log format transformation, protocol translation.
-- **Example:** Adapter container converting app logs into JSON for centralized logging.
-- **Pros:** Standardized outputs, interoperability.
-- **Cons:** Can introduce performance overhead.
+## Q3. How would you implement blue-green or canary deployments for containerized workloads?
+- **Blue-Green:** two environments; switch traffic at Ingress/load balancer.  
+- **Canary:** progressive rollout (5% → 20% → 50%) using Argo Rollouts/Flagger.  
+- Monitor via Prometheus/Grafana, auto-rollback on errors.  
+- Blue-Green → safer rollback; Canary → better progressive validation.  
 
 ---
 
-## 5. **Init Container Pattern**
-- **Description:** A container that runs before the main app container starts.
-- **Use Case:** Preparing environment, database migrations, config downloads.
-- **Example:** Init container fetching secrets before app starts.
-- **Pros:** Ensures app starts only after dependencies are ready.
-- **Cons:** Adds startup latency.
+## Q4. How do you secure sensitive data in containers?
+- Store secrets in **Kubernetes Secrets** or **external vaults**.  
+- Mount secrets as **tmpfs volumes** (not disk).  
+- Use **RBAC + network policies** for access control.  
+- Automate **secret rotation** via CI/CD pipelines.  
+- Avoid hardcoding secrets in images/env variables.  
 
 ---
 
-## 6. **Work Queue Pattern**
-- **Description:** Multiple containers consume tasks from a shared queue.
-- **Use Case:** Background jobs, batch processing, async workflows.
-- **Example:** Worker containers pulling tasks from RabbitMQ/Kafka/SQS.
-- **Pros:** Horizontal scaling, decoupling producers/consumers.
-- **Cons:** Requires queue infrastructure, at-least-once/at-most-once semantics.
+## Q5. How would you design observability for multi-container pods?
+- Logs aggregated via sidecar (Fluentd/Vector).  
+- Distributed tracing with **OpenTelemetry** across containers.  
+- Metrics exposed by sidecar exporters → Prometheus.  
+- Correlate using **trace IDs** injected into logs/metrics.  
+- Ensures full visibility across app + helper containers.  
 
 ---
 
-## 7. **Sidekick Pattern**
-- **Description:** A helper container provides supporting functionality but is tightly coupled to the main app.
-- **Use Case:** File watchers, data synchronization, log forwarding.
-- **Example:** Main app + log collector running together.
-- **Pros:** Keeps app lightweight, adds missing capabilities.
-- **Cons:** Strong coupling, not reusable across services.
+## Q6. What are the different container design patterns and when do you use them?
+- **Single Container per Pod:** Best for stateless services (simple APIs).  
+- **Sidecar:** Adds logging, monitoring, or proxy (e.g., Envoy, Fluentd).  
+- **Ambassador:** Handles outbound connections to external DBs/APIs.  
+- **Adapter:** Normalizes logs/protocols for standard outputs.  
+- **Init Container:** Prepares environment (fetch configs, migrations).  
+- **Work Queue / Worker:** Multiple workers pull jobs from a queue.  
+- **Sidekick:** Tightly coupled helper container (e.g., file sync, log forwarder).  
+- **Daemonset (Kubernetes):** Runs infra agents (Prometheus Node Exporter, Fluent Bit) on every node.  
+- **Scatter-Gather:** Fan-out requests to multiple workers and aggregate responses.  
+- **Data Loader Sidecar:** Preloads data/models/configs into shared volumes.  
+- Pattern choice depends on workload requirements, operational complexity, and trade-offs (performance, coupling, reusability).  
 
 ---
